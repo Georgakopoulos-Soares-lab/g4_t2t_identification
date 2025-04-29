@@ -20,14 +20,6 @@ from typing import Optional
 from attr import field
 import attr
 
-def count_cpgi(sequence: str) -> int:
-    total_cpg = 0
-    for i in range(len(sequence)-1):
-        chunk = sequence[i:i+2]
-        if chunk == "cg":
-            total_cpg += 1
-    return total_cpg
-
 def create_windows(sequence_sizes: str, total_bins=2000):
     windows = BedTool().window_maker(g=sequence_sizes, n=total_bins)
     regions = []
@@ -78,7 +70,6 @@ def split_genomic_regions(fasta_sequence: str, CHUNK_SIZE: int) -> pl.DataFrame:
         for i in range(0, sequence_length, CHUNK_SIZE):
             chunk = seq[i:i+CHUNK_SIZE]
             gc_content = chunk.count("g") + chunk.count("c")
-            cpgi = count_cpgi(chunk)
             chunk_size = min(sequence_length - i, CHUNK_SIZE)
             region_df.append({
                             "seqID": seqID,
@@ -87,8 +78,6 @@ def split_genomic_regions(fasta_sequence: str, CHUNK_SIZE: int) -> pl.DataFrame:
                             "length": chunk_size,
                             "gc_content": gc_content,
                             "gc_proportion": gc_content / chunk_size,
-                            "cpg": cpgi,
-                            "cpg_proportion": cpgi / (chunk_size - 1),
             })
     region_df = pl.DataFrame(region_df)
     return region_df
@@ -214,12 +203,15 @@ class GCEnrichmentModel:
         diminished = 0
         for total_iterations, CHUNK_SIZE in enumerate(range(self.lower, self.lower + self.max_iter, 1), 1):
             CHUNK_SIZE_ = int(CHUNK_SIZE * self.step)
-            regions_df = split_genomic_regions(fasta, CHUNK_SIZE_)
-            regions_df = extract_motif_coverage(regions_df, motif_bed, genome_wide_density)
-            regions_df.write_csv(
+            if not self.regions_path.joinpath(f"regions_chunk_size_{CHUNK_SIZE}.txt").is_file():
+                regions_df = split_genomic_regions(fasta, CHUNK_SIZE_)
+                regions_df = extract_motif_coverage(regions_df, motif_bed, genome_wide_density)
+                regions_df.write_csv(
                         self.regions_path.joinpath(f"regions_chunk_size_{CHUNK_SIZE}.txt"),
                         separator="\t"
                     )
+            else:
+                regions_df = pl.read_csv(self.regions_path.joinpath(f"regions_chunk_size_{CHUNK_SIZE}.txt"), separator="\t")
             
             # cross validate
             regions_df = regions_df.to_pandas()
@@ -268,7 +260,7 @@ class GCEnrichmentModel:
                     if diminished > self.patience:
                         print(colored(f"Found best model after {total_iterations} total iterations!", "green"))
                         break
-            prev_score = CHUNK_SIZE
+            prev_score = avg_performance
             
         # save results
         with open(self.cv_results, mode="w", encoding="utf-8") as f:
@@ -352,53 +344,6 @@ class GCEnrichmentModel:
         with open(target, mode="rb") as f:
             return joblib.load(f)
 
-    def adjust_gc(self, df: pd.DataFrame, chunk_size: int, degree: int) -> pl.DataFrame:
-                   
-        '''
-        Input: 
-        df: dataframe to perform GC adjustment on Fold Enrichment
-        -------------------------
-        - Loads model
-        - Performs GC adjustment
-        -------------------------
-        Returns: GC-adjusted dataframe for motif density
-        '''
-
-        loaded_pipe = self.load_model(chunk_size, degree=degree)
-        if "gc_proportion" not in df:
-            raise  KeyError(f"GC-Content has not been calculated.")
-        if isinstance(df, pl.DataFrame):
-            df = df.to_pandas()
-
-        X_test = df[self.features]
-        y_pred = pl.Series(loaded_pipe.predict(X_test)).to_frame("predicted_enrichment")
-        df_enrichment = pl.concat([
-                                            df, y_pred
-                                        ], how="horizontal")\
-                                    .with_columns(
-                                                (pl.col("fold_enrichment") - pl.col("predicted_enrichment")).alias("res")
-                                    )\
-                                    .with_columns(
-                                                pl.col("res").map_elements(perform_test).alias("test_statistic")
-                                    )\
-                                    .with_columns(
-                                            pl.col("test_statistic").list.get(0).alias("percentile"),
-                                            pl.col("test_statistic").list.get(1).alias("pval")
-                                        )
-        p_values = list(df_enrichment["pval"])
-        corrected_pvals = multipletests(p_values, method='fdr_bh')[1]
-        df_enrichment = pl.concat([
-                                    df_enrichment,
-                                    pl.Series(corrected_pvals).to_frame("adj_pval"),
-                                ], how="horizontal"
-                                )\
-                            .with_columns(
-                                    pl.col("adj_pval").map_elements(evaluate_stars, return_dtype=str).alias("significance")
-                            )\
-                            .with_columns(
-                                pl.col("significance").map_elements(lambda x: self.sig_color if x.startswith("*") else self.ns_color, return_dtype=str).alias("significance_color")
-                            )
-        return df_enrichment 
 
     def plot_best_model(self, chunk_size: int, degree: int = 2, include_bias: bool = True) -> None:
         best_model = self.load_model(chunk_size, degree=degree)
@@ -446,25 +391,6 @@ class GCEnrichmentModel:
         fig.savefig(f"{self.plots_path}/model_residuals_chunk_{chunk_size}_degree_{degree}_linreg.png", bbox_inches='tight')
         # res.to_frame(name="Residuals").to_csv("/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/residuals_2degree_g4_model.csv", index=False, mode="w", header=False)
 
-def perform_test(observed_res, residuals):
-    percentile = percentileofscore(residuals, observed_res, kind='rank')
-    if observed_res > np.median(residuals):
-        p_value = 1 - (percentile / 100)
-    else:
-        p_value = percentile / 100
-    return percentile, p_value
-
-def evaluate_stars(pval: float) -> str:
-    if pval < 0.0001:
-        return "*" * 4
-    if pval < 0.001:
-        return "*" * 3
-    if pval < 0.01:
-        return "*" * 2
-    if pval < 0.05:
-        return "*"
-    return "ns"
-    
 
 if __name__ == "__main__":
     

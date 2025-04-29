@@ -21,6 +21,7 @@ class Haplotypes:
         self.indir = Path(indir).resolve()
         self.test = test
         self.test_samples = test_samples
+        self.mode = mode
         if self.test:
             print(colored(f"WARNING! This is a test round! Only {self.test_samples} haplotypes will be processed.", "red"))
 
@@ -32,7 +33,6 @@ class Haplotypes:
         self.outdir.mkdir(exist_ok=True)
         self.outdir = self.outdir.joinpath(self.mode)
         self.outdir.mkdir(exist_ok=True)
-        self.mode = mode
         print(f"Outsourcing results to ---> `{self.outdir}`.")
         print(f"Using mode --> `{self.mode}`.")
         
@@ -123,13 +123,15 @@ class Haplotypes:
     def load_data(self) -> dict[str, set[str]]:
         # this needs to be run on HPC - huge amount of data
         sequences_per_sample = {}
-        # total_g4 = {}
+        total_g4 = {}
 
         for idx, sample in tqdm(enumerate(self.haplotype_paths, 0), total=len(self.haplotype_paths)):
             temp = pd.read_csv(sample, usecols=['sequence'])
             temp = temp[~temp['sequence'].str.contains('N')]
             temp['sequence'] = temp['sequence'].str.upper()
             temp['sequence'] = temp['sequence'].apply(Haplotypes.complement)
+
+            total = temp.shape[0]
             if "CHM13" in sample.name or "chm13" in sample.name:
                 sample_id = "chm13v2"
             else:
@@ -143,10 +145,17 @@ class Haplotypes:
             # sample_id = sample.name.split('.')[0] + '.' + find_type(sample.name)
             assert sample_id.split('.')[0] in self.metadata
             sequences_per_sample.update({sample_id: set(temp['sequence'])})
+            total_g4.update({sample_id: total})
 
             if self.test and idx > self.test_samples:
                 break
 
+        dest = f"{self.outdir}/total_g4_per_haplotype_{self.mode}.csv"
+        with open(dest, mode="w", encoding="utf-8") as f:
+            f.write("haplotype,total_g4\n")
+            for sample_id, total in total_g4.items():
+                f.write(f"{sample_id},{total}\n")
+        print(colored(f"Saved total g4 for mode {self.mode}!", "green"))
         print(colored(f"Total haplotypes loaded: {len(sequences_per_sample)}.", "green"))
         return sequences_per_sample
 

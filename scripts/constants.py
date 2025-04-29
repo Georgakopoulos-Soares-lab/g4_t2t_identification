@@ -12,10 +12,8 @@ class ConfigPaths(Enum):
 
     CENTROMERE = Path(os.getenv("CENTROMERE"))
     TELOMERE = Path(os.getenv("TELOMERE"))
-    SEQUENCE_SIZES = Path(os.getenv("SEQUENCE_SIZES"))
+    # SEQUENCE_SIZES = Path(os.getenv("SEQUENCE_SIZES"))
     GENOME_SIZE = Path(os.getenv("GENOME_SIZE"))
-    GENOME = Path(os.getenv("GENOME"))
-    REPORT = Path(os.getenv("REPORT"))
     INDEX = Path(os.getenv("INDEX"))
     FASTA = Path(os.getenv("FASTA"))
 
@@ -33,7 +31,7 @@ class ConfigPaths(Enum):
     # G4 DATASETS
     G4HUNTER_HG002 = Path(os.getenv("G4HUNTER_HG002"))
     G4REGEX = Path(os.getenv("G4REGEX"))
-    CONTROL_REGEX = ""
+    CONTROL_G4REGEX = Path(os.getenv("CONTROL_G4REGEX"))
 
     # SEQUENCE REPORT
     SEQUENCE_REPORT = Path(os.getenv("SEQUENCE_REPORT"))
@@ -43,9 +41,13 @@ class ConfigPaths(Enum):
     GFF_AGAT = Path(os.getenv("GFF_AGAT"))
 
     # MISCALLENEOUS
-    PROMOTERS = Path(os.getenv("PROMOTERS"))
+    # PROMOTERS = Path(os.getenv("PROMOTERS"))
     GERM_VAR = Path(os.getenv("GERM_VAR"))
     MUTATION = Path(os.getenv("MUTATION"))
+
+    # directory of processed/splitted mutations from Germline Variants
+    PROCESSED_MUTATIONS = Path(os.getenv("PROCESSED_MUTATIONS"))
+    PRMD9 = Path(os.getenv("PRMD9"))
 
     def __init__(self, path):
         if not path.exists():

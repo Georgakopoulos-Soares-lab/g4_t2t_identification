@@ -7,56 +7,7 @@ import polars as pl
 from pybedtools import BedTool
 from enum import Enum
 import re
-
-class Constants(Enum):
-
-    # METHYLATION DATASETS
-    HG002_METH = "/storage/group/izg5139/default/nicole/datasets/chm13v2.0_hg002_CpG_ont_guppy5.0.7_nanopolish0.13.2.bed" 
-    CHM13v2_METH = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/methylation/chm13v2.0_CHM13_CpG_ont_guppy3.6.0_nanopolish0.13.2.bed"
-
-    # METADATA
-    METADATA = "/storage/group/izg5139/default/nicole/datasets/hprc_year1_sample_metadata.txt"
-
-    # G4 DATASETS
-    G4HUNTER = "/storage/group/izg5139/default/nicole/MirrorRTR/g4_results/chm13v2_g4hunter.txt"
-    G4HUNTER_HG002 = "/storage/group/izg5139/default/nicole/g4_t2t/g4_chm13v2_with_hg002.txt"
-    G4REGEX = "/storage/group/izg5139/default/nicole/MirrorRTR/chm13v2_regex_motifs.txt"
-
-    # CONTROL DATASETS
-    CONTROL_G4HUNTER = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/chm13v2_g4hunter.controls.txt"
-    CONTROL_REGEX = ""
-
-    # TELOMERES
-    TELOMERE = "/storage/group/izg5139/default/nicole/transfer_mirror/primates/telomeres/chm13v2.0_telomere.bed"
-    CENTROMERE = "/storage/group/izg5139/default/nicole/transfer_mirror/primates/centromeres/chm13v2.0_censat_v2.0.bed"
-    
-    # GENOME SIZE
-    GENOME_SIZE = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/genome.txt"
-
-    # SEQUENCE REPORT
-    SEQUENCE_REPORT = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/sequence_report_CHM13v2.tsv"
-
-    # INDEX
-    INDEX = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/chm13v2.0.fa.gz.fai"
-
-    # GFF
-    GFF = "/storage/home/nmc6088/datasets/GCF_009914755.1_T2T-CHM13v2.0_genomic.gff.gz"
-    GFF_AGAT = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/GCF_009914755.1_T2T-CHM13v2.0_genomic.agat.gff"
-
-    # FASTA
-    FASTA = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/chm13v2.0.fa.gz"
-    
-    # MISCALLENEOUS
-    PROMOTERS = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/agat_gff_eukaryota/GCF_009914755.1_T2T-CHM13v2.0_genomic.agat.gff"
-    MUTATION = "/storage/group/izg5139/default/nicole/datasets/mutations_informed.txt"
-
-    # GERMLINE VARIANTS
-    GERM_VAR = "/storage/group/izg5139/default/nicole/datasets/hprc-v1.1-mc-chm13.vcfbub.a100k.wave.vcf.gz"
-
-    # TRANSPOSABLE ELEMENTS
-    ALU = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/transposable_elements/chm13v2.0_Alu.bed"
-    SVA = "/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/transposable_elements/chm13v2.0_SVA.bed"
-
+from constants import ConfigPaths
 
 def extract_grun_counts(sequence: str) -> int:
     motif = "g" if sequence.count("g") >= sequence.count("c") else "c"
@@ -89,18 +40,18 @@ class MethylationMapper:
             print(colored(f"Failed to create output directory.", "red"))
 
         if self.methylation_type == "HG002_METH":
-            self.methylation_path = Constants.HG002_METH.value
+            self.methylation_path = ConfigPaths.HG002_METH.value
         elif self.methylation_type == "CHM13v2_METH":
-            self.methylation_path = Constants.CHM13v2_METH.value
+            self.methylation_path = ConfigPaths.CHM13v2_METH.value
         else:
             raise ValueError(f"Invalid methylation type `{self.methylation_type}`.")
 
         if self.g4_type == "G4HUNTER":
-            self.g4_path = Constants.G4HUNTER.value
-            self.g4_controls = Constants.CONTROL_G4HUNTER.value
+            self.g4_path = ConfigPaths.G4HUNTER.value
+            self.g4_controls = ConfigPaths.CONTROL_G4HUNTER.value
         elif self.g4_type == "G4REGEX":
-            self.g4_path = Constants.G4REGEX.value
-            self.g4_controls = Constants.CONTROL_REGEX.value
+            self.g4_path = ConfigPaths.G4REGEX.value
+            self.g4_controls = ConfigPaths.CONTROL_G4REGEX.value
         else:
             raise ValueError(f"Invalid G4 type `{self.g4_type}`.")
 
@@ -144,9 +95,6 @@ class MethylationMapper:
                                  has_header=False,
                                  new_columns=["seqID", "start", "end", "methylation_level"]
                                 )\
-                    .with_columns(
-                        (pl.col('start') - 1).alias("start")
-                    )\
                     .filter(
                                 pl.col("start") < pl.col("end")
                                 )
@@ -174,7 +122,23 @@ class MethylationMapper:
         return g4_df
 
     def load_g4_regex(self) -> pl.DataFrame:
-        pass
+        g4_df = pl.read_csv(self.g4_path,
+                            separator="\t"
+                            )\
+                    .with_columns(
+                                pl.col("sequence").str.to_lowercase()
+                    )\
+                    .with_columns(
+                            pl.col("sequence")
+                                            .map_elements(lambda seq: "+" if seq.count("g") >= seq.count("c") else "-",
+                                                                               return_dtype=str)
+                                            .alias("motif_strand"),
+
+                            pl.col("sequence").map_elements(extract_grun_counts, return_dtype=int).alias("GRUN_counts"),
+
+                            pl.col("sequence").map_elements(extract_loop_ratio, return_dtype=float).alias("LOOP_ratio"),
+                    )
+        return g4_df
     
     def load_g4_controls(self) -> pl.DataFrame:
         g4_controls = pl.read_csv(self.g4_controls, separator="\t")
@@ -189,9 +153,14 @@ class MethylationMapper:
         return "Hypermethylated"
 
     def map_g4_to_methylation(self) -> pl.DataFrame:
-
         # LOAD G4
-        g4_df = self.load_g4hunter()
+        if self.g4_type == "G4HUNTER":
+            g4_df = self.load_g4hunter()
+            print("Loaded G4HUNTER!")
+        else:
+            g4_df = self.load_g4_regex()
+            print("LOADED REGEX!")
+        
         g4_bed = BedTool.from_dataframe(g4_df.to_pandas()).sort()
         
         # LOAD CONTROLS
@@ -259,11 +228,11 @@ if __name__ == "__main__":
     
    import argparse
    parser = argparse.ArgumentParser()
-   parser.add_argument("--outdir", type=str, default="/storage/group/izg5139/default/nicole/g4_t2t_analysis/datasets/methylation_data")
+   parser.add_argument("--outdir", type=str, default="/storage/group/izg5139/default/nicole/g4_t2t_identification/methylation_data")
    args = parser.parse_args()
 
-   methylation_types = ["HG002_METH"]
-   g4_types = ["G4HUNTER"]
+   methylation_types = ["HG002_METH", "CHM13v2_METH"]
+   g4_types = ["G4HUNTER", "G4REGEX"]
 
    for methylation_type in tqdm(methylation_types):
        for g4_type in tqdm(g4_types):
