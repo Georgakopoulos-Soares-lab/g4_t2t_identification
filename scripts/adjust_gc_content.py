@@ -29,7 +29,8 @@ class ContigencyTest:
 
 class GCAdjustmentResidualTest:
 
-    def __init__(self, threshold: float = 1.6, degree: int = 2, CHUNK_SIZE: int = 2):
+    def __init__(self, model_path: str, threshold: float = 1.6, degree: int = 2, CHUNK_SIZE: int = 2):
+        self.model_path = model_path
         self.threshold = threshold
         self.degree = degree
         self.CHUNK_SIZE = CHUNK_SIZE
@@ -50,13 +51,15 @@ class GCAdjustmentResidualTest:
                                     pvalue=pval*2)
 
     def load_model(self):
-        model = Path(f"/storage/group/izg5139/default/nicole/g4_t2t/src/scripts/model_training/models/best_model_degree_{self.degree}_CHUNK_{self.CHUNK_SIZE}.pkl")
+        model = Path(f"{self.model_path}/models/linreg_model_degree_{self.degree}_CHUNK_{self.CHUNK_SIZE}.pkl")
         with open(model, 'rb') as f:
             linreg = joblib.load(f)
         return linreg
     
     @staticmethod
     def evaluate_stars(pval: float) -> str:
+        if pval < 0.0001:
+            return "*" * 4
         if pval < 0.001:
             return "*" * 3
         if pval < 0.01:
@@ -67,7 +70,7 @@ class GCAdjustmentResidualTest:
     
     def load_residuals(self) -> np.ndarray:
         residuals = []
-        with open("/storage/group/izg5139/default/nicole/g4_t2t/src/scripts/model_training/residuals/residuals_chunk_2_degree_2_bias_True.txt") as f:
+        with open(f"{self.model_path}/residuals/residuals_chunk_2_degree_2_bias_True.txt") as f:
             for line in f:
                 residuals.append(float(line.strip()))
         residuals = np.array(residuals)
@@ -91,7 +94,9 @@ def load_gw_density(g4_bed, g4_control_bed) -> tuple[float, float]:
 
     # CONTROL DENSITY
     control_gw_density = pd.read_table(
-                                g4_control_bed.sort().merge().fn, header=None, names=["seqID", "start", "end"]
+                                g4_control_bed.sort().merge().fn, 
+                                header=None, 
+                                names=["seqID", "start", "end"]
     )
     control_gw_density["size"] = control_gw_density["end"] - control_gw_density["start"]
     control_gw_density = control_gw_density["size"].sum() * 1e6 / genome_size
@@ -100,6 +105,7 @@ def load_gw_density(g4_bed, g4_control_bed) -> tuple[float, float]:
 
 
 def adjust_for_gc_content(df: pl.DataFrame, 
+                          model_path: str,
                           degree: int = 2, 
                           CHUNK_SIZE: int = 2,
                           threshold: float = 1.6,
@@ -113,6 +119,7 @@ def adjust_for_gc_content(df: pl.DataFrame,
         return hypothesis.stat, hypothesis.pvalue
 
     residual_test = GCAdjustmentResidualTest(threshold=threshold, 
+                                             model_path=model_path,
                                              degree=degree, 
                                              CHUNK_SIZE=CHUNK_SIZE)
     linreg = residual_test.load_model()
