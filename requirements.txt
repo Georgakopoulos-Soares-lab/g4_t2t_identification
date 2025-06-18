@@ -1,0 +1,13 @@
+numpy
+pandas
+polars
+tqdm
+seaborn
+matplotlib
+scipy
+statsmodels
+pybedtools
+termcolor
+python-dotenv
+joblib
+biopython
