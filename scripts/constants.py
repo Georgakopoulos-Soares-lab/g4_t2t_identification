@@ -50,7 +50,7 @@ class ConfigPaths(Enum):
     PRMD9 = os.getenv("PRMD9")
 
     def __init__(self, path):
-        if path and not Path(path).resolve().exists():
+        if path and not Path(path).resolve().expanduser().exists():
             raise FileNotFoundError(f"Path does not exist: {path}.")
 
 if __name__ == "__main__":

@@ -111,6 +111,7 @@ def adjust_for_gc_content(df: pl.DataFrame,
                           threshold: float = 1.6,
                           alternative: str = 'two-tailed',
                           evaluate_stars: bool = True) -> pl.DataFrame:
+    
     if isinstance(df, pd.DataFrame):
         df = pl.from_pandas(df)
 

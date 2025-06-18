@@ -3,17 +3,17 @@ from tqdm import tqdm
 from pathlib import Path
 from collections import defaultdict
 from pybedtools import BedTool
-from constants import ConfigPaths
+# from constants import ConfigPaths
 import numpy as np
 import pandas as pd
 import polars as pl
 from scipy.stats import percentileofscore
 from statsmodels.stats.multitest import multipletests
 from dotenv import load_dotenv
-load_dotenv()
 
 def load_sequence_sizes() -> pl.DataFrame:
-    sequence_sizes = pl.read_csv(ConfigPaths.SEQUENCE_SIZES.value,
+    sequence_sizes = pl.read_csv(Path("~/biolab/t2t_g4/centromeric/genome.txt").expanduser(),
+                                 # ConfigPaths.SEQUENCE_SIZES.value,
                                  separator="\t",
                                  has_header=False,
                                  new_columns=["seqID", "size"]
@@ -23,16 +23,19 @@ def load_sequence_sizes() -> pl.DataFrame:
 def map_to_bins(df: pl.DataFrame, total_bins: int) -> pl.DataFrame:
     if "size" not in df.columns:
         sequence_sizes = load_sequence_sizes()
-        df = df.join(sequence_sizes, 
+        df = df.join(
+                    sequence_sizes, 
                      how="left",
-                     on="seqID")
+                     on="seqID"
+                     )
+        
     df_assigned = df.with_columns(
                     start_bin=((pl.col("start") * total_bins / pl.col("size")).floor() + 1).cast(pl.Int32),
                     end_bin=(((pl.col("end")-1) * total_bins / pl.col("size")).floor() + 1).cast(pl.Int32)
                     )
     return df_assigned
     
-def load_centromere(centro) -> pl.DataFrame:
+def load_centromere(centro, index=None) -> pl.DataFrame:
     df = pl.read_csv(centro, 
                      separator="\t",
                      columns=range(4),
@@ -50,7 +53,7 @@ def load_centromere(centro) -> pl.DataFrame:
         temp = df.filter(pl.col("compartment") == c).to_pandas()
         temp_df = pl.read_csv(
                         BedTool.from_dataframe(temp)
-                                        .sort(faidx=ConfigPaths.INDEX.value)
+                                        .sort()
                                         .merge(c="4", o="distinct").fn,
                         has_header=False,
                         separator="\t",
@@ -71,8 +74,7 @@ def centromere_to_bins(centromere_df):
             bin_compartments[binn].add(compartment)
     return bin_compartments
 
-def create_windows(total_bins=2000):
-    genome_file = ConfigPaths.SEQUENCE_SIZES.value
+def create_windows(genome_file: str, total_bins: int = 2000) -> pl.DataFrame:
     windows = BedTool().window_maker(g=genome_file, n=total_bins)
     regions = []
     for window in windows:
@@ -92,9 +94,9 @@ def create_windows(total_bins=2000):
                     )
     return regions_df
 
-def extract_region_gc_content(regions_df: pl.DataFrame) -> pl.DataFrame:
+def extract_region_gc_content(regions_df: pl.DataFrame, fasta_file) -> pl.DataFrame:
     regions_bed = BedTool.from_dataframe(regions_df.to_pandas()).sort()
-    seqfa = regions_bed.sequence(fi=str(ConfigPaths.GENOME.value),
+    seqfa = regions_bed.sequence(fi=str(fasta_file),
                                  name=True, 
                                  tab=True)
     regions_df_with_gc = []
@@ -161,23 +163,31 @@ def calculate_region_motif_coverage(region_df, motif_bed) -> pl.DataFrame:
     print("JOBS DONE!")
     return region_df
 
-def construct_regions_pipe(total_bins: int) -> pl.DataFrame:
-    regions_df = create_windows(total_bins)
-    region_df_gc = extract_region_gc_content(regions_df)
-    motif_df = pl.read_csv(ConfigPaths.G4HUNTER.value, separator="\t").drop(["NBR"])
+def construct_regions_pipe(genome_file: str, fasta_file: str, g4_file: str, total_bins: int) -> pl.DataFrame:
+    regions_df = create_windows(genome_file, total_bins)
+    region_df_gc = extract_region_gc_content(regions_df, fasta_file)
+    motif_df = pl.read_csv(g4_file, separator="\t").drop(["NBR"])
     motif_bed = BedTool.from_dataframe(motif_df.to_pandas()).sort()
     region_df_gc = calculate_region_motif_coverage(region_df_gc, motif_bed)
     return region_df_gc
 
-def map_compartments_to_bins(centromere_df, 
-                             total_bins: int = 2000,
-                             remove_zero: bool = False):
+def map_compartments_to_bins_agnostic(centromere_df, 
+                             bin_sizes: dict[str, int],
+                             remove_zero: bool = False) -> dict[str, pd.DataFrame]:
     chromosomes = centromere_df['seqID'].unique()
-    bin_categories = defaultdict(lambda : {i: set() for i in range(1, total_bins+1)})
-    compartments = ["bsat", "gsat", 
-                    "censat", "ct", 
-                    "hsat1A", "hsat1B", "hsat2", "hsat3", 
-                    "dhor", "hor", "mon",
+    chromosomes = [seqID for seqID in bin_sizes]
+    bin_categories = dict()
+    compartments = ["bsat", 
+                    "gsat", 
+                    "censat", 
+                    "ct", 
+                    "hsat1A", 
+                    "hsat1B", 
+                    "hsat2", 
+                    "hsat3", 
+                    "dhor", 
+                    "hor", 
+                    "mon",
                     "rDNA"]
     valid = set(compartments)
     for row in centromere_df.iter_rows(named=True):
@@ -187,6 +197,64 @@ def map_compartments_to_bins(centromere_df,
         compartment = row['compartment']
         if compartment not in valid or chromosome == 'chrM':
             continue
+
+        if chromosome not in bin_categories:
+            bin_categories[chromosome] = {i: set() for i in range(1, bin_sizes[chromosome]+1)}
+        
+        start = int(start)
+        end = int(end)
+        for i in range(start, end+1):
+            bin_categories[chromosome][i].add(compartment)     
+
+    new_bins = {}
+    compartments = list(compartments)
+    for chromosome in chromosomes:
+        temp = bin_categories[chromosome]
+        new_bins.update({chromosome: []})
+        total_bins = bin_sizes[chromosome]
+        for i in range(1, total_bins+1):
+            comps = temp[i]
+            new_bins[chromosome].append([])
+            for c in compartments:
+                if c in comps:
+                    new_bins[chromosome][-1].append(1)
+                else:
+                    new_bins[chromosome][-1].append(0)
+        new_bins[chromosome] = pd.DataFrame(new_bins[chromosome], columns=compartments)
+
+        if remove_zero:
+            for col in new_bins[chromosome]:
+                if new_bins[chromosome][col].sum() == 0:
+                    new_bins[chromosome].drop(columns=[col], inplace=True)
+    return new_bins
+
+
+def map_compartments_to_bins(centromere_df, 
+                             total_bins: int = 2000,
+                             remove_zero: bool = False):
+    chromosomes = centromere_df['seqID'].unique()
+    bin_categories = defaultdict(lambda : {i: set() for i in range(1, total_bins+1)})
+    compartments = ["bsat", 
+                    "gsat", 
+                    "censat", 
+                    "ct", 
+                    "hsat1A", 
+                    "hsat1B", 
+                    "hsat2", 
+                    "hsat3", 
+                    "dhor", 
+                    "hor", 
+                    "mon",
+                    "rDNA"]
+    valid = set(compartments)
+    for row in centromere_df.iter_rows(named=True):
+        start = row['start_bin']
+        end = row['end_bin']
+        chromosome = row['seqID']
+        compartment = row['compartment']
+        if compartment not in valid or chromosome == 'chrM':
+            continue
+        
         start = int(start)
         end = int(end)
         for i in range(start, end+1):

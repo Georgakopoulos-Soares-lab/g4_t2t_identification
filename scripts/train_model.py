@@ -410,7 +410,7 @@ if __name__ == "__main__":
     parser.add_argument("--ns_color", type=str, default="crimson")
     args = parser.parse_args()
     
-    outdir = Path("model_training")
+    outdir = Path("model_training_new")
     outdir.mkdir(exist_ok=True)
 
     motifs_df = pd.read_table(args.motifs, usecols=range(3))
