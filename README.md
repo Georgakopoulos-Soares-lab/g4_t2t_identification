@@ -19,6 +19,21 @@ Please direct any issues, comments, or questions to the corresponding author or 
 
 G-quadruplexes (G4s) are alternative DNA structures with diverse biological roles, but their examination in highly repetitive parts of the human genome has been hindered by the lack of reliable sequencing technologies. Recent long-read based genome assemblies have enabled their characterization in previously inaccessible parts of the human genome. Here, we examine the topography and genomic instability of potential G4-forming sequences in the gap-less, reference human genome assembly and in 88 haplotypes of diverse ancestry. We report that G4s are highly enriched in specific repetitive regions, including in certain centromeric and pericentromeric repeat types, and in ribosomal DNA arrays, and experimentally validate the most prevalent G4s detected. G4s tend to have lower methylation than expected throughout the human genome and are genomically unstable, showing an excess of all mutation types, including substitutions, insertions and deletions and most prominently structural variants. Finally, we show that G4s are consistently enriched at PRDM9 binding sites, a protein involved in meiotic recombination. Together, our findings establish G4s as dynamic and functionally significant elements of the human genome and highlight new avenues for investigating their contributions to human disease and evolution.
 
+## Repository Structure
+
+├── data
+├── figures
+├── notebooks
+└── scripts
+
+- data/ directory contains extraction data from the scripts.
+- data/model_training/ contains the GC-G4 quadratic models saved as pickle files and the residuals used to evaluate the significance of G4 enrichment.
+- data/pangenomes contains the G4 motif statistics across the examined haplotypes.
+- data/PRMD9_densities_* contains the distribution of G4s relative to the mid of PRMD9 loci.
+- data/tri_model_out contains the trinucleotide mutation model fold enrichment statistics across the human T2T genome.
+- scripts/ contains the scripts used to preprocess the files.
+- notebooks/ contains basic data science and analysis used to preprocess the data and generate the for the figures in the manuscript.
+
 ## Haplotype Analysis
 
 We analyzed 88 phased diploid haplotypes from the Human Pangenome Reference Consortium to study the distribution of G4s in T2T assemblies.
