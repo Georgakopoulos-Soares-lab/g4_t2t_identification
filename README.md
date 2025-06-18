@@ -57,6 +57,10 @@ Our results suggest a consistent enrichment of G4s at PRMD9 binding sites, suppo
 We used long read sequencing data from Aleva et. al to analyze the distribution of G4s proximal to PRMD9 binding sites.
 This analysis focused on the intersection between G4 motifs and PRMD9-associated binding sites, providing insights into the potential mechanistic links between G4 formation and meiotic recombination processes.
 
+## License
+
+This work is licensed under a [Creative Commons Attribution 4.0 International License (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/).
+
 ## Contact
 
 For any questions about the manuscript or the code please contact Nikol Chantzi or Dr. Ilias Georgakopoulos-Soares.:
