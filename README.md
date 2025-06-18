@@ -71,7 +71,7 @@ This work is licensed under a [Creative Commons Attribution 4.0 International Li
 
 ## Contact
 
-For any questions about the manuscript or the code please contact Nikol Chantzi or Dr. Ilias Georgakopoulos-Soares.:
+For any questions about the manuscript or the code please contact Nikol Chantzi or Dr. Ilias Georgakopoulos-Soares:
 
 ```
 Nikol Chantzi nmc6088@psu.edu nicolechantzi@gmail.com
