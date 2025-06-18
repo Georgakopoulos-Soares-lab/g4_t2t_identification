@@ -21,6 +21,8 @@ G-quadruplexes (G4s) are alternative DNA structures with diverse biological role
 
 ## Repository Structure
 
+.
+├── PRMD9
 ├── data
 ├── figures
 ├── notebooks
@@ -33,6 +35,16 @@ G-quadruplexes (G4s) are alternative DNA structures with diverse biological role
 - data/tri_model_out contains the trinucleotide mutation model fold enrichment statistics across the human T2T genome.
 - scripts/ contains the scripts used to preprocess the files.
 - notebooks/ contains basic data science and analysis used to preprocess the data and generate the for the figures in the manuscript.
+
+## Installation
+
+To use the scripts you only need to have a python version >= 3.8 and install the required packages from requirements.txt using
+
+```
+pip install -r requirements.txt
+```
+
+Most of the scripts are documented in the code and can be executed provided the necessary command line arguments.
 
 ## Haplotype Analysis
 
