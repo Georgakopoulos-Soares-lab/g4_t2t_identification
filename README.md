@@ -1,4 +1,10 @@
-# Identification of G4s across T2T Genomes
+# Landscape and mutational dynamics of G-quadruplexes in the complete human genome and in haplotypes of diverse ancestry
+
+Below you will find the code for the manuscript:
+
+**Landscape and mutational dynamics of G-quadruplexes in the complete human genome and in haplotypes of diverse ancestry**
+
+Please direct any issues, comments, or questions to the corresponding author or first author (see contact information below).
 
 ## Table of Contents
 
