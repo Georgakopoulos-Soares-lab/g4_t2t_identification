@@ -62,6 +62,6 @@ This analysis focused on the intersection between G4 motifs and PRMD9-associated
 For any questions about the manuscript or the code please contact Nikol Chantzi or Dr. Ilias Georgakopoulos-Soares.:
 
 ```
-Nikol Chantzi nmc6088@psu.edu
+Nikol Chantzi nmc6088@psu.edu nicolechantzi@gmail.com
 Ilias Georgakopoulos-Soares izg5139@psu.edu
 ```
