@@ -4,6 +4,8 @@ Below you will find the code for the manuscript:
 
 **Landscape and mutational dynamics of G-quadruplexes in the complete human genome and in haplotypes of diverse ancestry**
 
+conducted by the Georgakopoulos-Soares lab.
+
 Please direct any issues, comments, or questions to the corresponding author or first author (see contact information below).
 
 ![figures_1](figures/figure_1.png)
@@ -22,7 +24,6 @@ G-quadruplexes (G4s) are alternative DNA structures with diverse biological role
 ## Repository Structure
 
 .
-├── PRMD9
 ├── data
 ├── figures
 ├── notebooks
