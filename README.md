@@ -4,7 +4,7 @@ Below you will find the code for the manuscript:
 
 **Landscape and mutational dynamics of G-quadruplexes in the complete human genome and in haplotypes of diverse ancestry**
 
-conducted by the [Georgakopoulos-Soares lab](https://github.com/Georgakopoulos-Soares-lab/g4_t2t_identification/tree/master).
+The research was conducted by the [Georgakopoulos-Soares lab](https://github.com/Georgakopoulos-Soares-lab/g4_t2t_identification/tree/master).
 
 Please direct any issues, comments, or questions to the corresponding author or first author (see contact information below).
 
