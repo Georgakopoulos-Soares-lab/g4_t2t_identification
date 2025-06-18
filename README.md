@@ -6,7 +6,7 @@ Below you will find the code for the manuscript:
 
 Please direct any issues, comments, or questions to the corresponding author or first author (see contact information below).
 
-![figures_1](figures/figures_1.png)
+![figures_1](figures/figure_1.png)
 
 ## Table of Contents
 
