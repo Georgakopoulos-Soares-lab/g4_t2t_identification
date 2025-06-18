@@ -63,6 +63,15 @@ class Haplotypes:
         print(colored(f"Total reference motifs loaded: {self.total_motifs}.", "green"))
 
     def load_haplotypes(self) -> list[str]:
+        """
+        Loads haplotype file paths for valid haplotypes, skipping curated and duplicate entries.
+        
+        Args:
+            None
+        
+        Returns:
+            list[str]: List of file paths to valid haplotype CSV files.
+        """
         haplotypes = {Path(str(file)\
                                 .replace(".f1_v2.1_genomic-regex", "")\
                                 .replace(".f1_v2_genomic-regex", "")\
@@ -88,6 +97,15 @@ class Haplotypes:
         return haplotype_paths
 
     def load_reference(self) -> pd.DataFrame:
+        """
+        Loads the reference genome motifs as a DataFrame and adds a canonical sequence column.
+        
+        Args:
+            None
+        
+        Returns:
+            pd.DataFrame: DataFrame with reference motifs and canonical sequences.
+        """
         reference_df = pd.read_table(self.reference)
         reference_df.loc[:, "sequence"] = reference_df["sequence"].str.upper()
         reference_df.loc[:, "canonical_sequence"] = reference_df["sequence"].apply(Haplotypes.complement)
@@ -95,6 +113,15 @@ class Haplotypes:
 
     @staticmethod
     def reverse_complement(seq: str) -> str:
+        """
+        Returns the reverse complement of a DNA sequence.
+        
+        Args:
+            seq (str): DNA sequence (A, T, G, C).
+        
+        Returns:
+            str: Reverse complement sequence.
+        """
         return ''.join({
                     'A': 'T', 
                     'T': 'A', 
@@ -103,6 +130,15 @@ class Haplotypes:
     
     @staticmethod
     def complement(seq: str) -> str:
+        """
+        Returns the canonical sequence: the input if G count >= C count, else its reverse complement.
+        
+        Args:
+            seq (str): DNA sequence (A, T, G, C).
+        
+        Returns:
+            str: Canonical sequence.
+        """
         total_g = seq.count('G')
         total_c = seq.count('C')
         if total_g >= total_c:
@@ -111,6 +147,15 @@ class Haplotypes:
     
     @staticmethod
     def find_type(sample: str) -> str:
+        """
+        Determines the haplotype type (maternal or paternal) from the sample name.
+        
+        Args:
+            sample (str): Sample name or file name.
+        
+        Returns:
+            str: 'maternal' or 'paternal'.
+        """
         if not isinstance(sample, str):
             sample = str(sample)
 
@@ -121,6 +166,15 @@ class Haplotypes:
         raise ValueError()
 
     def load_data(self) -> dict[str, set[str]]:
+        """
+        Loads and processes haplotype motif sequences for all valid samples.
+        
+        Args:
+            None
+        
+        Returns:
+            dict[str, set[str]]: Dictionary mapping sample IDs to sets of motif sequences.
+        """
         # this needs to be run on HPC - huge amount of data
         sequences_per_sample = {}
         total_g4 = {}
@@ -160,9 +214,16 @@ class Haplotypes:
         return sequences_per_sample
 
     def calculate_total_motifs_across_haplotypes(self, sequences_per_sample: dict[str, set[str]], saveas: bool = True) -> pd.DataFrame:
-        '''
-        For each haplotype, it extracts the total number of unique motifs.
-        '''
+        """
+        For each haplotype, extracts the total number of unique motifs.
+        
+        Args:
+            sequences_per_sample (dict[str, set[str]]): Dictionary mapping sample IDs to sets of motif sequences.
+            saveas (bool, optional): Whether to save the result as CSV. Defaults to True.
+        
+        Returns:
+            pd.DataFrame: DataFrame with total unique motifs per haplotype and population info.
+        """
         total_df = {}
         for key, seq in sequences_per_sample.items():
             total_df[key] = len(seq)
@@ -186,6 +247,15 @@ class Haplotypes:
         return total_df
 
     def load_motifs_across_haplotypes(self, sequences_per_sample: dict[str, set[str]]) -> dict[str, set[str]]:
+        """
+        Loads motifs across haplotypes, grouped by assembly/sample.
+        
+        Args:
+            sequences_per_sample (dict[str, set[str]]): Dictionary mapping sample IDs to sets of motif sequences.
+        
+        Returns:
+            dict[str, set[str]]: Dictionary mapping assembly/sample to set of motifs.
+        """
         motifs_per_assembly = defaultdict(set)
         for haplotype in tqdm(sequences_per_sample):
             seq = sequences_per_sample[haplotype]
@@ -195,11 +265,17 @@ class Haplotypes:
         return motifs_per_assembly
 
     def shared_with_reference_genome(self, sequences_per_sample: dict, saveas: bool = True) -> pd.DataFrame:
-        '''
-        For each haplotype, it extracts the total percentage of motifs from the reference genome, that are being found in this haplotype.
-        Thus, if reference genome has 10 unique motifs, and the haplotype was found to have 5 of these, it will report 50%.
-        WARNING: We remove non-autosomal chromosomes for this analysis.
-        '''
+        """
+        For each haplotype, extracts the percentage of motifs from the reference genome found in the haplotype.
+        Removes non-autosomal chromosomes for this analysis.
+        
+        Args:
+            sequences_per_sample (dict): Dictionary mapping sample IDs to sets of motif sequences.
+            saveas (bool, optional): Whether to save the result as CSV. Defaults to True.
+        
+        Returns:
+            pd.DataFrame: DataFrame with sharing statistics per haplotype and chromosome.
+        """
         # fetch autosomal motifs
         autosomal_motifs = self.reference_df.query("seqID != 'chrX' & seqID != 'chrY'").dropna(subset=['seqID'])
         # fetch autosomal chromosomes
@@ -249,9 +325,16 @@ class Haplotypes:
         return common_with_reference_specific 
 
     def pairwise_shared_motifs(self, sequences_per_sample: dict[str, set[str]], saveas: bool = True) -> pd.DataFrame:
-        '''
-        Extracts jaccard index for unique motifs conducting pairwise comparisons.
-        '''
+        """
+        Extracts Jaccard index for unique motifs by conducting pairwise comparisons between haplotypes.
+        
+        Args:
+            sequences_per_sample (dict[str, set[str]]): Dictionary mapping sample IDs to sets of motif sequences.
+            saveas (bool, optional): Whether to save the result as CSV. Defaults to True.
+        
+        Returns:
+            pd.DataFrame: DataFrame with pairwise Jaccard indices between haplotypes.
+        """
         jaccard_indices = {}
         samples = sequences_per_sample.keys()
 
@@ -280,10 +363,17 @@ class Haplotypes:
     def extract_unique_sequences(self, sequences_per_sample: dict[str, set[str]], 
                                        sex_distinction: bool = False, 
                                        saveas: bool = True) -> pd.DataFrame:
-        '''
-        Extracts unique sequences in each haplotype, by removing all sequence motifs encountered in the remaining haplotypes.
-        '''
-
+        """
+        Extracts unique sequences in each haplotype by removing all sequence motifs encountered in the remaining haplotypes.
+        
+        Args:
+            sequences_per_sample (dict[str, set[str]]): Dictionary mapping sample IDs to sets of motif sequences.
+            sex_distinction (bool, optional): Whether to distinguish by sex. Defaults to False.
+            saveas (bool, optional): Whether to save the result as CSV. Defaults to True.
+        
+        Returns:
+            pd.DataFrame: DataFrame with unique sequence counts per haplotype.
+        """
         unique_sequences = defaultdict(int)
         for sample_A in tqdm(sequences_per_sample, leave=True):
             if "chm" in sample_A:
@@ -324,6 +414,15 @@ class Haplotypes:
 
     @staticmethod
     def extract_loop_ratio(sequence: str) -> float:
+        """
+        Calculates the loop ratio (percentage of non-G/C bases) in a motif sequence.
+        
+        Args:
+            sequence (str): Motif sequence.
+        
+        Returns:
+            float: Loop ratio as a percentage.
+        """
         sequence = sequence.upper()
         leader = 'G' if sequence.count('G') >= sequence.count('C') else 'C'
         total_length = len(sequence)
@@ -332,10 +431,16 @@ class Haplotypes:
         return 1e2 * loop_size / total_length
 
     def shared_across_haplotypes(self, sequences_per_sample: dict[str, set[str]], saveas: bool = True) -> pd.DataFrame:
-        '''
-        Extracts for each motif, the proportion of haplotypes it was encountered.
-        For instance, if a motif was found in 5 haplotypes, then it will be assigned to number 5.
-        '''
+        """
+        For each motif, extracts the proportion of haplotypes in which it was encountered.
+        
+        Args:
+            sequences_per_sample (dict[str, set[str]]): Dictionary mapping sample IDs to sets of motif sequences.
+            saveas (bool, optional): Whether to save the result as CSV. Defaults to True.
+        
+        Returns:
+            pd.DataFrame: DataFrame with sharing proportion, sequence length, and loop ratio for each motif.
+        """
         g4_counter = defaultdict(int)
         for sample in tqdm(sequences_per_sample, total=len(sequences_per_sample)):
             if "chm13" in sample or "CHM13" in sample:
@@ -375,9 +480,15 @@ class Haplotypes:
         return g4_counter
 
     def extract_all(self):
-        '''
-        Extracts one by one all the statistic tables for the haplotypes.
-        '''
+        """
+        Extracts all statistic tables for the haplotypes by running all extraction methods in sequence.
+        
+        Args:
+            None
+        
+        Returns:
+            None
+        """
         sequences_per_sample = self.load_data()
         motifs_per_assembly = self.load_motifs_across_haplotypes(sequences_per_sample=sequences_per_sample)
         print(colored("Process has been initialized.", "green"))

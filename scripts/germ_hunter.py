@@ -16,12 +16,30 @@ from statsmodels.stats.multitest import multipletests
 from scipy.stats import chi2_contingency
 
 def binom_test_func(row: dict) -> float:
+    """
+    Performs a binomial test for a given row of mutation and motif counts.
+
+    Args:
+        row (dict): Dictionary with keys 'tri_mut_count', 'base_g4_tri_counts', 'mutation_bias'.
+
+    Returns:
+        float: p-value from the binomial test.
+    """
     return stats.binomtest(row["tri_mut_count"], 
                            row["base_g4_tri_counts"], 
                            row["mutation_bias"], 
                            alternative='two-sided').pvalue
 
 def contigency(row: dict) -> float:
+    """
+    Performs a chi-squared contingency test for a given row of mutation and motif counts.
+
+    Args:
+        row (dict): Dictionary with keys 'tri_mut_count', 'base_tri_counts', 'totalTimesMutated', 'gw_counts'.
+
+    Returns:
+        float: p-value from the chi-squared test.
+    """
     array = np.array([
                       [row['tri_mut_count'], row['base_tri_counts'] - row['tri_mut_count']],
                       [row['totalTimesMutated'], row['gw_counts'] - row['totalTimesMutated']]
@@ -30,6 +48,15 @@ def contigency(row: dict) -> float:
     return chi2_contingency(array).pvalue
 
 def map_stars(pval: float) -> str:
+    """
+    Maps a p-value to a significance string (stars or 'ns').
+
+    Args:
+        pval (float): The p-value to evaluate.
+
+    Returns:
+        str: Significance as stars or 'ns'.
+    """
     if pval < 0.0001:
         return "****"
     if pval < 0.001:
@@ -41,6 +68,16 @@ def map_stars(pval: float) -> str:
     return "ns"
 
 def merge_motifs(merged_motifs: pl.DataFrame, genome_size: str) -> pl.DataFrame:
+    """
+    Expands motif regions by one base pair and joins with chromosome sizes.
+
+    Args:
+        merged_motifs (pl.DataFrame): DataFrame of merged motif regions.
+        genome_size (str): Path to chromosome size file.
+
+    Returns:
+        pl.DataFrame: DataFrame with expanded motif regions.
+    """
     merged_motifs_df = []
     for row in merged_motifs.iter_rows(named=True):
         seqID = row['seqID']
@@ -84,6 +121,16 @@ def merge_motifs(merged_motifs: pl.DataFrame, genome_size: str) -> pl.DataFrame:
     return merged_motifs_df
 
 def fetch_extended_sequence(merged_motifs: pl.DataFrame, genome_fasta: str):
+    """
+    Fetches extended sequences for motif regions from a genome FASTA file.
+
+    Args:
+        merged_motifs (pl.DataFrame): DataFrame of motif regions with expanded coordinates.
+        genome_fasta (str): Path to genome FASTA file.
+
+    Returns:
+        pd.DataFrame: DataFrame with extended motif sequences.
+    """
     merged_motifs_bed = BedTool.from_dataframe(merged_motifs.select(["seqID", 
                                                                     "start_expanded", 
                                                                     "end_expanded", 
@@ -117,6 +164,16 @@ def fetch_extended_sequence(merged_motifs: pl.DataFrame, genome_fasta: str):
 
 def extend_mutations(mutations_df_expanded: pl.DataFrame, 
                      genome_fasta: str) -> pl.DataFrame:
+    """
+    Extends mutation regions and annotates trinucleotide context from the genome FASTA.
+
+    Args:
+        mutations_df_expanded (pl.DataFrame): DataFrame of expanded mutation regions.
+        genome_fasta (str): Path to genome FASTA file.
+
+    Returns:
+        pl.DataFrame: DataFrame with trinucleotide context and annotations.
+    """
     mutations_bed = BedTool.from_dataframe(mutations_df_expanded.select(["seqID",
                                                                          "start",
                                                                          "end",
@@ -195,12 +252,30 @@ def extend_mutations(mutations_df_expanded: pl.DataFrame,
     return trinucleotides_annotated
 
 def reverse_complement(seq: str) -> str:
+    """
+    Returns the reverse complement of a DNA sequence (lowercase).
+
+    Args:
+        seq (str): DNA sequence (a, t, g, c).
+
+    Returns:
+        str: Reverse complement sequence.
+    """
     return ''.join({'a': 't', 
                     'g': 'c', 
                     'c': 'g', 
                     't': 'a'}[x] for x in seq)[::-1]
 
 def count_trinucleotides(motifs_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Counts the occurrences of each trinucleotide in the provided motif sequences.
+
+    Args:
+        motifs_df (pl.DataFrame): DataFrame with a 'sequence' column.
+
+    Returns:
+        pl.DataFrame: DataFrame with trinucleotide counts.
+    """
     # count total trinucleotides
     if "sequence" not in motifs_df.columns:
         raise KeyError("Column `sequence` does not exist in the dataframe.")
@@ -232,6 +307,15 @@ def count_trinucleotides(motifs_df: pl.DataFrame) -> pl.DataFrame:
     return base_trinucleotide_counts
 
 def identify_mutation_area(row: dict) -> str:
+    """
+    Identifies the mutation area (e.g., G-run or C-run) for a given row.
+
+    Args:
+        row (dict): Dictionary with mutation and sequence information.
+
+    Returns:
+        str: Mutation area label or empty string if not found.
+    """
     row = dict(row)
     mut_start = row["mut_start"]
     start = row["start"]
@@ -257,6 +341,15 @@ def identify_mutation_area(row: dict) -> str:
     return "" # ValueError(f"Invalid area for sequence {sequence}, mutation {mut_start} and {start}.")
 
 def find_gruns(sequence: str) -> int:
+    """
+    Finds the number of G-runs or C-runs in a sequence.
+
+    Args:
+        sequence (str): DNA sequence.
+
+    Returns:
+        int: Number of G-runs or C-runs.
+    """
     if sequence.count("g") >= sequence.count("c"):
         motif = "g"
     else:
@@ -264,6 +357,15 @@ def find_gruns(sequence: str) -> int:
     return len(re.findall("%s{3,}" % motif, sequence))
 
 def main():
+    """
+    Main workflow for trinucleotide enrichment analysis from motifs and mutations.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
     import argparse
     parser = argparse.ArgumentParser(description="""Germ Hunter 
                                     is a command line utility that 

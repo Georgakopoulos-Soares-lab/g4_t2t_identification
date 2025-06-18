@@ -13,6 +13,15 @@ pybedtools.set_tempdir("/scratch/nmc6088")
 SAME_COLUMNS = ["seqID", "start", "end", "strand", "gc_proportion", "gc_content", "sequence_length"]
 
 def contigency(row) -> float:
+    """
+    Performs a chi-squared contingency test for a given row of overlap/control counts.
+
+    Args:
+        row (dict): Dictionary with keys 'overlappingBp', 'not_g4', 'overlappingBp_control', 'not_control'.
+
+    Returns:
+        float: p-value from the chi-squared test.
+    """
     array = np.array([
                       [row['overlappingBp'], row['not_g4']],
                       [row['overlappingBp_control'], row['not_control']]
@@ -20,6 +29,15 @@ def contigency(row) -> float:
     return chi2_contingency(array).pvalue
 
 def extract_gc_content(fasta_sequence) -> pl.DataFrame:
+    """
+    Extracts GC content and related statistics from a fasta sequence file.
+
+    Args:
+        fasta_sequence: BedTool sequence object with .seqfn attribute (tab-separated sequence file).
+
+    Returns:
+        pl.DataFrame: DataFrame with columns for seqID, start, end, strand, gc_proportion, gc_content, sequence_length.
+    """
     df_with_gc = []
     with open(fasta_sequence.seqfn, mode="r", encoding="utf-8") as f:
         for line in f:
@@ -48,6 +66,17 @@ def extract_gc_content(fasta_sequence) -> pl.DataFrame:
     return df_with_gc
 
 def main(window_size: int, mutation_type: str, destdir: str):
+    """
+    Main workflow for extracting mutation-centered windows, calculating GC content, and motif coverage.
+
+    Args:
+        window_size (int): Size of the window around each mutation.
+        mutation_type (str): Type of mutation to analyze (e.g., 'ins', 'del').
+        destdir (str): Output directory for results.
+
+    Returns:
+        None
+    """
     destdir = Path(destdir).resolve()
     destdir.mkdir(exist_ok=True)
     

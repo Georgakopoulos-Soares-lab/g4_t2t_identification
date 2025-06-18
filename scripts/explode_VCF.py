@@ -9,6 +9,15 @@ from pathlib import Path
 vcf_path = Path("/storage/group/izg5139/default/nicole/pangenome_extractions/pangenomics/hprc-v2.0-mc-chm13.wave.vcf.gz")
 
 def parse_VCF(vcf_path):
+    """
+    Parses a VCF file and returns a DataFrame with the first 9 columns.
+
+    Args:
+        vcf_path (Path): Path to the VCF file (gzipped).
+
+    Returns:
+        pd.DataFrame: DataFrame with VCF columns.
+    """
     with gzip.open(vcf_path, "rt") as f:
         for line in f:
             if line.startswith("##"):
@@ -26,6 +35,18 @@ def classify_variant(allele: str,
                      variant: str, 
                      smallins_thresh: int = 51, 
                      smalldel_thresh: int = 51) -> str:
+    """
+    Classifies a variant as SNP, MNP, insertion, deletion, or complex type.
+
+    Args:
+        allele (str): Reference allele sequence.
+        variant (str): Alternate allele sequence.
+        smallins_thresh (int, optional): Threshold for small insertion. Defaults to 51.
+        smalldel_thresh (int, optional): Threshold for small deletion. Defaults to 51.
+
+    Returns:
+        str: Variant classification.
+    """
     allele_N = len(allele)
     variant_N = len(variant)
     if allele_N == variant_N:
@@ -43,6 +64,15 @@ def classify_variant(allele: str,
     raise ValueError()
 
 def parse_attributes(attrs):
+    """
+    Parses the INFO field attributes from a VCF row into a dictionary.
+
+    Args:
+        attrs (str): INFO field string from VCF.
+
+    Returns:
+        dict: Nested dictionary of parsed attributes.
+    """
     attributes = defaultdict(dict)
     valid_attributes = {"AC", "AF", "AN", "LEN", "TYPE", "NS"}
     attrs = attrs.split(";")
@@ -75,6 +105,15 @@ def parse_attributes(attrs):
     return attributes
     
 def parse_VCF():
+    """
+    Parses the loaded VCF DataFrame and expands each variant into a detailed record.
+
+    Args:
+        None
+
+    Returns:
+        pd.DataFrame: DataFrame with enriched variant information.
+    """
     vcf_enriched = []
     for _, row in tqdm(df_vcf.iterrows(), 
                        total=df_vcf.shape[0]):

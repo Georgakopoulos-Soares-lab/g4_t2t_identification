@@ -12,13 +12,34 @@ from attrs import field
 
 @attr.s
 class HypothesisTest:
+    """
+    Stores the result of a hypothesis test.
+
+    Args:
+        pvalue (float): The p-value of the test.
+        stat (float): The test statistic (e.g., percentile).
+
+    Returns:
+        HypothesisTest: An object containing the p-value and statistic.
+    """
 
     pvalue: float = field()
     stat: float = field()
 
 class ContigencyTest:
-    
+    """
+    Performs a chi-squared contingency test on a 2x2 table.
+    """
     def contingency(self, row) -> float:
+        """
+        Computes the chi-squared test for independence for a given row.
+
+        Args:
+            row (dict): Dictionary with keys 'overlappingBp', 'not_g4', 'overlappingBp_control', 'not_control'.
+
+        Returns:
+            tuple: The result of scipy.stats.chi2_contingency (statistic, p-value, dof, expected).
+        """
         array = np.array([
                         [row["overlappingBp"], row["not_g4"]],
                         [row["overlappingBp_control"], row["not_control"]]
@@ -28,8 +49,19 @@ class ContigencyTest:
         return chi2_contingency(array)
 
 class GCAdjustmentResidualTest:
-
+    """
+    Performs GC content adjustment and residual hypothesis testing using a pre-trained model.
+    """
     def __init__(self, model_path: str, threshold: float = 1.6, degree: int = 2, CHUNK_SIZE: int = 2):
+        """
+        Initializes the GCAdjustmentResidualTest.
+
+        Args:
+            model_path (str): Path to the model directory.
+            threshold (float, optional): Residual threshold for filtering. Defaults to 1.6.
+            degree (int, optional): Degree of the polynomial model. Defaults to 2.
+            CHUNK_SIZE (int, optional): Chunk size for model. Defaults to 2.
+        """
         self.model_path = model_path
         self.threshold = threshold
         self.degree = degree
@@ -38,6 +70,16 @@ class GCAdjustmentResidualTest:
         self.model_residuals = self.load_residuals()
 
     def residual_test(self, observed_residual, alternative = "one-tailed") -> HypothesisTest:
+        """
+        Performs a residual hypothesis test comparing the observed residual to the model residuals.
+
+        Args:
+            observed_residual (float): The observed residual value.
+            alternative (str, optional): 'one-tailed' or 'two-tailed'. Defaults to 'one-tailed'.
+
+        Returns:
+            HypothesisTest: Object containing the test statistic and p-value.
+        """
         if alternative != "one-tailed" and alternative != "two-tailed":
             raise ValueError("Alternative hypothesis must be either `one-tailed` or `two-tailed`.")
         percentile = percentileofscore(self.model_residuals, 
@@ -51,6 +93,15 @@ class GCAdjustmentResidualTest:
                                     pvalue=pval*2)
 
     def load_model(self):
+        """
+        Loads the linear regression model from disk.
+
+        Args:
+            None
+
+        Returns:
+            sklearn.linear_model: The loaded regression model.
+        """
         model = Path(f"{self.model_path}/models/linreg_model_degree_{self.degree}_CHUNK_{self.CHUNK_SIZE}.pkl")
         with open(model, 'rb') as f:
             linreg = joblib.load(f)
@@ -58,6 +109,15 @@ class GCAdjustmentResidualTest:
     
     @staticmethod
     def evaluate_stars(pval: float) -> str:
+        """
+        Maps a p-value to a significance string (stars or 'ns').
+
+        Args:
+            pval (float): The p-value to evaluate.
+
+        Returns:
+            str: Significance as stars or 'ns'.
+        """
         if pval < 0.0001:
             return "*" * 4
         if pval < 0.001:
@@ -69,6 +129,15 @@ class GCAdjustmentResidualTest:
         return "ns"
     
     def load_residuals(self) -> np.ndarray:
+        """
+        Loads and filters model residuals from disk.
+
+        Args:
+            None
+
+        Returns:
+            np.ndarray: Array of filtered residuals.
+        """
         residuals = []
         with open(f"{self.model_path}/residuals/residuals_chunk_2_degree_2_bias_True.txt") as f:
             for line in f:
@@ -78,6 +147,16 @@ class GCAdjustmentResidualTest:
         return residuals
 
 def load_gw_density(g4_bed, g4_control_bed) -> tuple[float, float]:
+    """
+    Calculates genome-wide density for G4 and control motifs.
+
+    Args:
+        g4_bed (BedTool): BedTool object for G4 motifs.
+        g4_control_bed (BedTool): BedTool object for control motifs.
+
+    Returns:
+        tuple[float, float]: (G4 density, control density) per Mb.
+    """
     # Genome Size
     genome_size = pd.read_table(ConfigPaths.GENOME_SIZE.value, 
                                 header=None, 
@@ -111,6 +190,21 @@ def adjust_for_gc_content(df: pl.DataFrame,
                           threshold: float = 1.6,
                           alternative: str = 'two-tailed',
                           evaluate_stars: bool = True) -> pl.DataFrame:
+    """
+    Adjusts fold enrichment for GC content using a regression model and computes residual significance.
+
+    Args:
+        df (pl.DataFrame): DataFrame with 'fold_enrichment' and 'gc_proportion'.
+        model_path (str): Path to the model directory.
+        degree (int, optional): Degree of the polynomial model. Defaults to 2.
+        CHUNK_SIZE (int, optional): Chunk size for model. Defaults to 2.
+        threshold (float, optional): Residual threshold for filtering. Defaults to 1.6.
+        alternative (str, optional): 'one-tailed' or 'two-tailed'. Defaults to 'two-tailed'.
+        evaluate_stars (bool, optional): Whether to add significance stars. Defaults to True.
+
+    Returns:
+        pl.DataFrame: DataFrame with predicted enrichment, residuals, p-values, and significance.
+    """
     
     if isinstance(df, pd.DataFrame):
         df = pl.from_pandas(df)
@@ -149,6 +243,17 @@ def adjust_for_gc_content(df: pl.DataFrame,
 def correct_multiple_comparisons(df_adj: pl.DataFrame, 
                                 strategy: str = "fdr_bh",
                                 use_log: bool = True) -> pl.DataFrame:
+    """
+    Applies multiple testing correction to p-values and adds adjusted significance columns.
+
+    Args:
+        df_adj (pl.DataFrame): DataFrame with 'pval' column.
+        strategy (str, optional): Correction method (default 'fdr_bh').
+        use_log (bool, optional): Whether to add -log(pval) columns. Defaults to True.
+
+    Returns:
+        pl.DataFrame: DataFrame with adjusted p-values and significance columns.
+    """
     p_values = list(df_adj["pval"])
     corrected_pvals = multipletests(p_values, method='fdr_bh')[1]
     df_adj = pl.concat([

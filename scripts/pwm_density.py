@@ -8,12 +8,32 @@ import matplotlib.pyplot as plt
 from seaborn import color_palette
 
 class PWMExtractor:
+    """
+    Extracts position weight matrix (PWM) densities and related statistics from motif data.
+    """
 
     def __init__(self) -> None:
+        """
+        Initializes the PWMExtractor with nucleotide set.
+
+        Args:
+            None
+        Returns:
+            None
+        """
         self.nucleotides = "agct"
 
     @staticmethod
     def invert(nucleotide: str) -> str:
+        """
+        Returns the complement of a nucleotide (lowercase).
+
+        Args:
+            nucleotide (str): Input nucleotide ('a', 't', 'g', 'c').
+
+        Returns:
+            str: Complement nucleotide.
+        """
         match nucleotide:
             case 'a':
                 return 't'
@@ -31,6 +51,18 @@ class PWMExtractor:
                                         enrichment: bool = False,
                                         return_frame: bool = True,
                                  ) -> pl.DataFrame:
+        """
+        Extracts template and non-template density profiles from intersected motif data.
+
+        Args:
+            intersect_df (pl.DataFrame): DataFrame of intersected motif data.
+            window_size (int): Window size for density extraction.
+            enrichment (bool, optional): Whether to normalize as enrichment. Defaults to False.
+            return_frame (bool, optional): Whether to return as DataFrame. Defaults to True.
+
+        Returns:
+            pl.DataFrame: DataFrame with density profiles for template and non-template strands.
+        """
         total_counts = {
                         "Template": np.zeros(2*window_size+1),
                         "Non-Template": np.zeros(2*window_size+1)
@@ -96,19 +128,62 @@ class PWMExtractor:
 
     @staticmethod
     def bayes_estimator(counts: int, total_counts: int, total_bins: int) -> float:
+        """
+        Computes the Bayesian estimator for motif counts.
+
+        Args:
+            counts (int): Motif count.
+            total_counts (int): Total motif counts.
+            total_bins (int): Number of bins.
+
+        Returns:
+            float: Bayesian estimate.
+        """
         return (counts+1)/(total_counts+total_bins)
 
     @staticmethod
     def expected_value(counts: int, total_counts: int, total_bins: int) -> float:
+        """
+        Computes the expected value using the Bayesian estimator.
+
+        Args:
+            counts (int): Motif count.
+            total_counts (int): Total motif counts.
+            total_bins (int): Number of bins.
+
+        Returns:
+            float: Expected value.
+        """
         return PWMExtractor.bayes_estimator(counts, total_counts, total_bins)
 
     @staticmethod
     def enrichment(counts: int, total_counts: int, total_bins: int) -> float:
+        """
+        Computes the enrichment value for motif counts.
+
+        Args:
+            counts (int): Motif count.
+            total_counts (int): Total motif counts.
+            total_bins (int): Number of bins.
+
+        Returns:
+            float: Enrichment value.
+        """
         return counts/(total_counts * PWMExtractor.bayes_estimator(counts, total_counts, total_bins))
 
     def get_relative_positions(self, 
                                intersect_df: pl.DataFrame, 
                                window_size: int) -> Iterator[np.ndarray]:
+        """
+        Yields relative position arrays for each motif in the intersected data.
+
+        Args:
+            intersect_df (pl.DataFrame): DataFrame of intersected motif data.
+            window_size (int): Window size for extraction.
+
+        Returns:
+            Iterator[np.ndarray]: Iterator of relative position arrays.
+        """
         total_overlap = 0
         for row in intersect_df.iter_rows(named=True):
             compartment_strand = row['strand']
@@ -142,6 +217,18 @@ class PWMExtractor:
                   N: int = 1_000,
                   lower_quantile: float = 0.025,
                   upper_quantile: float = 0.975) -> tuple[pd.Series, pd.Series, pd.Series]:
+        """
+        Performs bootstrap resampling to estimate mean and confidence intervals.
+
+        Args:
+            relative_positions (pd.DataFrame): DataFrame of relative position densities.
+            N (int, optional): Number of bootstrap samples. Defaults to 1000.
+            lower_quantile (float, optional): Lower quantile for CI. Defaults to 0.025.
+            upper_quantile (float, optional): Upper quantile for CI. Defaults to 0.975.
+
+        Returns:
+            tuple[pd.Series, pd.Series, pd.Series]: (mean, lower bound, upper bound) of densities.
+        """
         bootstrap_df = []
         total_samples = relative_positions.shape[0]
         for _ in tqdm(range(N), leave=True, position=0):
@@ -161,6 +248,19 @@ class PWMExtractor:
                         return_frame: bool = False,
                         enrichment: bool = False,
                         ) -> list[int] | np.ndarray:
+        """
+        Extracts density profile for motifs in the intersected data.
+
+        Args:
+            intersect_df (pl.DataFrame): DataFrame of intersected motif data.
+            window_size (int): Window size for density extraction.
+            return_array (bool, optional): Whether to return as array. Defaults to True.
+            return_frame (bool, optional): Whether to return as DataFrame. Defaults to False.
+            enrichment (bool, optional): Whether to normalize as enrichment. Defaults to False.
+
+        Returns:
+            list[int] | np.ndarray: Density profile as list or array.
+        """
         total_counts = np.zeros(2*window_size+1)
         total_overlap = 0
         for row in intersect_df.iter_rows(named=True):
@@ -215,6 +315,17 @@ class PWMExtractor:
                     window_size: int, 
                     return_frame: bool = True
                     ) -> dict[str, list[int]]:
+        """
+        Extracts position weight matrix (PWM) counts for each nucleotide at each position.
+
+        Args:
+            intersect_df (pl.DataFrame): DataFrame of intersected motif data.
+            window_size (int): Window size for PWM extraction.
+            return_frame (bool, optional): Whether to return as DataFrame. Defaults to True.
+
+        Returns:
+            dict[str, list[int]]: Dictionary of PWM counts for each nucleotide.
+        """
         total_counts = {n: [0 for _ in range(2*window_size+1)] for n in self.nucleotides}
         total_overlap = 0
         for row in intersect_df.iter_rows(named=True):
