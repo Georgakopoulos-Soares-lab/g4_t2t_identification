@@ -175,7 +175,7 @@ def map_compartments_to_bins_agnostic(centromere_df,
                              bin_sizes: dict[str, int],
                              remove_zero: bool = False) -> dict[str, pd.DataFrame]:
     chromosomes = centromere_df['seqID'].unique()
-    chromosomes = [seqID for seqID in bin_sizes]
+    # chromosomes = [seqID for seqID in bin_sizes]
     bin_categories = dict()
     compartments = ["bsat", 
                     "gsat", 
@@ -190,16 +190,15 @@ def map_compartments_to_bins_agnostic(centromere_df,
                     "mon",
                     "rDNA"]
     valid = set(compartments)
-    for row in centromere_df.iter_rows(named=True):
+    for chromosome in chromosomes:
+        bin_categories[chromosome] = {i: set() for i in range(1, bin_sizes[chromosome]+1)}
+    for row in tqdm(centromere_df.iter_rows(named=True)):
         start = row['start_bin']
         end = row['end_bin']
         chromosome = row['seqID']
         compartment = row['compartment']
         if compartment not in valid or chromosome == 'chrM':
             continue
-
-        if chromosome not in bin_categories:
-            bin_categories[chromosome] = {i: set() for i in range(1, bin_sizes[chromosome]+1)}
         
         start = int(start)
         end = int(end)
@@ -209,6 +208,8 @@ def map_compartments_to_bins_agnostic(centromere_df,
     new_bins = {}
     compartments = list(compartments)
     for chromosome in chromosomes:
+        if chromosome not in bin_categories:
+            continue
         temp = bin_categories[chromosome]
         new_bins.update({chromosome: []})
         total_bins = bin_sizes[chromosome]
