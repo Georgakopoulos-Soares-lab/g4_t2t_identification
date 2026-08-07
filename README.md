@@ -19,7 +19,7 @@ Using this pipeline, we show that G4s are strongly enriched in specific repetiti
 | `Pangenomes-Haplotypes.ipynb` | G4 conservation/variation across 88 HPRC haplotypes |
 | `PRMD9_hotspots_eG4.ipynb`, `PRMD9-Conservation_g4.ipynb` | Enrichment of G4s at PRDM9 binding sites/meiotic recombination hotspots |
 
-[`Paper_figures/pangenome_figure_1.pdf`](Paper_figures/pangenome_figure_1.pdf)
+![Pangenome figure](Paper_figures/pangenome_figure_1.png)
 
 ## License
 
