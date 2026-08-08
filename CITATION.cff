@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Landscape and mutational dynamics of G-quadruplexes across the complete human genome"
+type: software
+license: MIT
+repository-code: "https://github.com/Georgakopoulos-Soares-lab/g4_t2t_identification"
+authors:
+  - given-names: Nikol
+    family-names: Chantzi
+  - given-names: Shiau Wei
+    family-names: Liew
+  - given-names: Aurell
+    family-names: Wijaya
+  - given-names: Candace S.Y.
+    family-names: Chan
+  - given-names: Ioannis
+    family-names: Mouratidis
+  - given-names: Emilyane
+    family-names: de Oliveira Santana Amaral
+  - given-names: Yasin
+    family-names: Uzun
+  - given-names: Martin
+    family-names: Hemberg
+  - given-names: Karen M.
+    family-names: Vasquez
+  - given-names: Chun Kit
+    family-names: Kwok
+  - given-names: Ilias
+    family-names: Georgakopoulos-Soares
